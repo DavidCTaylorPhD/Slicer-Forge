@@ -12,8 +12,7 @@ import { splitSlice } from './utils/modifier';
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { Axis, MaterialSettings, SliceSettings, Slice, Sheet, ModelStats } from './types';
 import * as THREE from 'three';
-import { LayoutDashboard, Box, Layers, AlertTriangle, Play, Pause, SkipBack, SkipForward, BookOpen } from 'lucide-react';
-import { InstructionsTab } from './components/InstructionsTab';
+import { LayoutDashboard, Box, Layers, AlertTriangle, Play, Pause, SkipBack, SkipForward, BookOpen, X } from 'lucide-react';
 
 // Ensure API KEY is available for GenAI
 if (!process.env.API_KEY) {
@@ -52,7 +51,7 @@ const App: React.FC = () => {
   const [oversizedSlices, setOversizedSlices] = useState<Slice[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState({ current: 0, total: 0, phase: '' });
-  const [activeTab, setActiveTab] = useState<'3d' | 'sheets' | 'assembly' | 'instructions'>('instructions');
+  const [activeTab, setActiveTab] = useState<'3d' | 'sheets' | 'assembly'>('3d');
   const [error, setError] = useState<string | null>(null);
 
   // Assembly State
@@ -63,6 +62,7 @@ const App: React.FC = () => {
   // PWA Installation State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallModal, setShowInstallModal] = useState(false);
+  const [showUserGuide, setShowUserGuide] = useState(false);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -324,17 +324,87 @@ const App: React.FC = () => {
         isInstallable={!!deferredPrompt}
       />
 
+      {showUserGuide && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+              <div className="flex items-center space-x-3">
+                <BookOpen className="w-6 h-6 text-indigo-400" />
+                <h2 className="text-xl font-bold text-white">How to Use SliceForge</h2>
+              </div>
+              <button onClick={() => setShowUserGuide(false)} className="text-slate-400 hover:text-white transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className="space-y-6">
+                <div className="flex items-start space-x-4">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center flex-shrink-0 font-bold">1</div>
+                  <div>
+                    <h3 className="font-semibold text-slate-100">Model Source</h3>
+                    <p className="text-slate-400 text-sm">Click 'Choose File' to upload your STL model.</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-4">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center flex-shrink-0 font-bold">2</div>
+                  <div>
+                    <h3 className="font-semibold text-slate-100">AI Advice</h3>
+                    <p className="text-slate-400 text-sm">Optional: Click 'Analyze & Recommend' to let the AI suggest parameters.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center flex-shrink-0 font-bold">3</div>
+                  <div>
+                    <h3 className="font-semibold text-slate-100">Scale & Units</h3>
+                    <p className="text-slate-400 text-sm">Use the toggle to switch between MM and IN. Check 'Model Dimensions' to ensure the size is correct.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center flex-shrink-0 font-bold">4</div>
+                  <div>
+                    <h3 className="font-semibold text-slate-100">Material Sheet</h3>
+                    <p className="text-slate-400 text-sm">Set the Width, Length, and Thickness of the material you are using.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center flex-shrink-0 font-bold">5</div>
+                  <div>
+                    <h3 className="font-semibold text-slate-100">Slicing Params</h3>
+                    <p className="text-slate-400 text-sm">Select your Slice Axis (X, Y, or Z) and choose a Nesting Strategy (Space or Sequential).</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="w-8 h-8 rounded-full bg-indigo-600/20 text-indigo-400 flex items-center justify-center flex-shrink-0 font-bold">6</div>
+                  <div>
+                    <h3 className="font-semibold text-slate-100">Finish</h3>
+                    <p className="text-slate-400 text-sm">Use the slider to set your 'Slice Count' and click the purple 'Slice & Nest' button.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="pt-4 border-t border-slate-800">
+                <p className="text-xs text-slate-500 italic">Note: Ensure your material dimensions are large enough for your model slices to avoid oversized warnings.</p>
+              </div>
+            </div>
+            <div className="p-6 bg-slate-800/50 flex justify-end">
+              <button 
+                onClick={() => setShowUserGuide(false)}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-all"
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex-grow flex flex-col h-full relative">
         <div className="absolute top-4 left-4 z-10 flex space-x-2 bg-slate-900/90 backdrop-blur p-1 rounded-lg border border-slate-700 shadow-xl">
-            <button
-                onClick={() => setActiveTab('instructions')}
-                className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                    activeTab === 'instructions' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                }`}
-            >
-                <BookOpen className="w-4 h-4 mr-2" />
-                Instructions
-            </button>
             <button
                 onClick={() => setActiveTab('3d')}
                 className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all ${
@@ -368,6 +438,14 @@ const App: React.FC = () => {
                 <Layers className="w-4 h-4 mr-2" />
                 Assembly View
             </button>
+            <div className="w-px h-6 bg-slate-700 mx-1 self-center" />
+            <button
+                onClick={() => setShowUserGuide(true)}
+                className="flex items-center px-4 py-2 rounded-md text-sm font-medium transition-all text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+                <BookOpen className="w-4 h-4 mr-2" />
+                User Guide
+            </button>
         </div>
 
         {error && (
@@ -379,10 +457,6 @@ const App: React.FC = () => {
         )}
 
         <div className="flex-grow relative w-full h-full">
-            {activeTab === 'instructions' && (
-                <InstructionsTab />
-            )}
-
             {activeTab === '3d' && (
                 <Viewer3D 
                     key={state.geometry?.uuid || 'empty'}
