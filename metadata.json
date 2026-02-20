@@ -1,0 +1,5 @@
+{
+  "name": "SliceForge 3D: Taylor Made Slicing for You 2.19.26",
+  "description": "A professional 3D model slicer and nester built with React and Three.js. Features STL loading, real-time slicing visualization, sheet nesting optimization, and AI-powered slicing advice.",
+  "requestFramePermissions": []
+}
