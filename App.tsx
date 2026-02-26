@@ -12,6 +12,7 @@ import { splitSlice } from './utils/modifier';
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { Axis, MaterialSettings, SliceSettings, Slice, Sheet, ModelStats } from './types';
 import * as THREE from 'three';
+import { mergeVertices } from 'three-stdlib';
 import { LayoutDashboard, Box, Layers, AlertTriangle, Play, Pause, SkipBack, SkipForward, BookOpen, X } from 'lucide-react';
 
 // Ensure API KEY is available for GenAI
@@ -36,6 +37,8 @@ const initialAppState: AppState = {
 const App: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [originalGeometry, setOriginalGeometry] = useState<THREE.BufferGeometry | null>(null);
+  const [lowPolyGeometry, setLowPolyGeometry] = useState<THREE.BufferGeometry | null>(null);
+  const [isLowPoly, setIsLowPoly] = useState(false);
   
   const { 
       state, 
@@ -116,18 +119,21 @@ const App: React.FC = () => {
   }, [state.slices]);
 
   useEffect(() => {
-      if (state.slices.length > 0) {
-          const result = nestSlices(
-              state.slices, 
-              state.material, 
-              state.sliceSettings.nestingOrder || 'optimized'
-          );
-          setSheets(result.sheets);
-          setOversizedSlices(result.oversized);
-      } else {
-          setSheets([]);
-          setOversizedSlices([]);
-      }
+      const runNesting = async () => {
+          if (state.slices.length > 0) {
+              const result = await nestSlices(
+                  state.slices, 
+                  state.material, 
+                  state.sliceSettings.nestingOrder || 'optimized'
+              );
+              setSheets(result.sheets);
+              setOversizedSlices(result.oversized);
+          } else {
+              setSheets([]);
+              setOversizedSlices([]);
+          }
+      };
+      runNesting();
   }, [state.slices, state.material, state.sliceSettings.nestingOrder]);
 
   useEffect(() => {
@@ -157,12 +163,16 @@ const App: React.FC = () => {
       setFile(e.target.files[0]);
       resetAppState(initialAppState);
       setOriginalGeometry(null);
+      setLowPolyGeometry(null);
+      setIsLowPoly(false);
       setError(null); 
     }
   };
 
   const handleModelLoaded = useCallback((geo: THREE.BufferGeometry) => {
     setOriginalGeometry(geo.clone());
+    setLowPolyGeometry(null);
+    setIsLowPoly(false);
     setAppState(prev => ({ ...prev, geometry: geo }));
     setError(null);
   }, [setAppState]);
@@ -171,8 +181,108 @@ const App: React.FC = () => {
       setError(errMessage);
       setAppState(prev => ({ ...prev, geometry: null }));
       setOriginalGeometry(null);
+      setLowPolyGeometry(null);
       setFile(null);
   }, [setAppState]);
+
+  const handleLowPolyToggle = async (enabled: boolean) => {
+    if (!originalGeometry) return;
+    
+    setIsLowPoly(enabled);
+    
+    if (enabled) {
+      if (lowPolyGeometry) {
+        setAppState(prev => ({ ...prev, geometry: lowPolyGeometry }));
+      } else {
+        // Check triangle count - Worker handles it better, but we still have limits
+        const currentTriangles = originalGeometry.index 
+            ? originalGeometry.index.count / 3 
+            : originalGeometry.attributes.position.count / 3;
+            
+        if (currentTriangles > 250000) {
+           setError("Model is too complex for Performance Mode (max 250k triangles).");
+           setIsLowPoly(false);
+           return;
+        }
+
+        if (currentTriangles < 500) {
+            setLowPolyGeometry(originalGeometry);
+            setAppState(prev => ({ ...prev, geometry: originalGeometry }));
+            return;
+        }
+
+        setIsProcessing(true);
+        setProgress({ current: 0, total: 100, phase: 'Simplifying geometry (Background)...' });
+        
+        try {
+            // Prepare data for worker - CLONE to avoid detaching original buffers
+            const positions = (originalGeometry.attributes.position.array as Float32Array).slice();
+            const indices = originalGeometry.index ? (originalGeometry.index.array as Uint32Array).slice() : null;
+            
+            // Target a reduction that keeps at least 2000 vertices or 15% of original
+            const vertexCount = originalGeometry.attributes.position.count;
+            const targetCount = Math.max(2000, Math.floor(vertexCount * 0.15));
+            const countToRemove = Math.max(0, vertexCount - targetCount);
+
+            if (countToRemove <= 0) {
+                setLowPolyGeometry(originalGeometry);
+                setAppState(prev => ({ ...prev, geometry: originalGeometry }));
+                setIsProcessing(false);
+                return;
+            }
+
+            // Create worker
+            const worker = new Worker(new URL('./utils/simplify.worker.ts', import.meta.url), { type: 'module' });
+            
+            worker.onmessage = (e) => {
+                const { success, positions: resultPositions, error: workerError } = e.data;
+                
+                if (success) {
+                    const newGeo = new THREE.BufferGeometry();
+                    newGeo.setAttribute('position', new THREE.BufferAttribute(resultPositions, 3));
+                    newGeo.computeVertexNormals();
+                    
+                    setLowPolyGeometry(newGeo);
+                    setAppState(prev => ({ ...prev, geometry: newGeo }));
+                } else {
+                    console.error("Worker simplification failed:", workerError);
+                    setError("Failed to simplify model in background.");
+                    setIsLowPoly(false);
+                }
+                
+                setIsProcessing(false);
+                worker.terminate();
+            };
+
+            worker.onerror = (err) => {
+                console.error("Worker error:", err);
+                setError("Simplification worker encountered an error.");
+                setIsLowPoly(false);
+                setIsProcessing(false);
+                worker.terminate();
+            };
+
+            // Send data to worker (transferring CLONED buffers for speed)
+            const transferables = [positions.buffer];
+            if (indices) transferables.push(indices.buffer);
+
+            worker.postMessage({
+                positions,
+                indices,
+                countToRemove
+            }, transferables as Transferable[]);
+
+        } catch (err) {
+            console.error("Failed to start simplification worker:", err);
+            setError("Could not start background simplification.");
+            setIsLowPoly(false);
+            setIsProcessing(false);
+        }
+      }
+    } else {
+      setAppState(prev => ({ ...prev, geometry: originalGeometry }));
+    }
+  };
 
   const handleResize = (newDims: { x: number, y: number, z: number }) => {
       if (!originalGeometry) return;
@@ -192,6 +302,10 @@ const App: React.FC = () => {
       newGeo.scale(scaleX, scaleY, scaleZ);
       newGeo.computeBoundingBox();
       
+      setOriginalGeometry(newGeo);
+      setLowPolyGeometry(null);
+      setIsLowPoly(false);
+      
       setAppState(prev => ({ 
           ...prev, 
           geometry: newGeo,
@@ -208,7 +322,9 @@ const App: React.FC = () => {
       return {
           dimensions: { x: size.x, y: size.y, z: size.z },
           volume: size.x * size.y * size.z, 
-          triangleCount: state.geometry.attributes.position.count / 3
+          triangleCount: state.geometry.index 
+              ? state.geometry.index.count / 3 
+              : state.geometry.attributes.position.count / 3
       };
   }, [state.geometry]);
 
@@ -307,6 +423,8 @@ const App: React.FC = () => {
         canUndo={canUndo}
         canRedo={canRedo}
         onShowInstall={() => setShowInstallModal(true)}
+        isLowPoly={isLowPoly}
+        onLowPolyToggle={handleLowPolyToggle}
       >
          <AIAssistant modelStats={modelStats} onSuggestParams={handleAISuggestion} />
       </Sidebar>
@@ -456,10 +574,33 @@ const App: React.FC = () => {
             </div>
         )}
 
+        {isProcessing && (
+            <div className="absolute inset-0 z-[60] flex items-center justify-center bg-slate-950/40 backdrop-blur-[2px]">
+                <div className="bg-slate-900/90 border border-slate-700 p-8 rounded-2xl shadow-2xl flex flex-col items-center space-y-4 max-w-sm w-full">
+                    <div className="relative w-16 h-16">
+                        <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+                        <div className="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <div className="text-center">
+                        <h3 className="text-lg font-bold text-white mb-1">{progress.phase}</h3>
+                        <p className="text-slate-400 text-sm">This may take a moment for complex shapes.</p>
+                    </div>
+                    {progress.total > 0 && (
+                        <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                            <div 
+                                className="bg-indigo-500 h-full transition-all duration-300 ease-out"
+                                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
         <div className="flex-grow relative w-full h-full">
             {activeTab === '3d' && (
                 <Viewer3D 
-                    key={state.geometry?.uuid || 'empty'}
+                    key={`${state.geometry?.uuid || 'empty'}-${isLowPoly}`}
                     file={file} 
                     geometry={state.geometry}
                     onModelLoaded={handleModelLoaded} 

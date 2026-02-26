@@ -21,6 +21,8 @@ interface SidebarProps {
   canUndo?: boolean;
   canRedo?: boolean;
   onShowInstall?: () => void;
+  isLowPoly: boolean;
+  onLowPolyToggle: (enabled: boolean) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -39,7 +41,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRedo,
   canUndo,
   canRedo,
-  onShowInstall
+  onShowInstall,
+  isLowPoly,
+  onLowPolyToggle
 }) => {
   const [localDims, setLocalDims] = useState<{ x: string; y: string; z: string }>({ x: '', y: '', z: '' });
   const [lockAspectRatio, setLockAspectRatio] = useState(true);
@@ -219,6 +223,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         cursor-pointer"
             />
           </div>
+
+          {modelStats && (
+            <div className="mt-4 flex items-center justify-between p-3 bg-slate-800/50 rounded-lg border border-slate-700/50">
+              <div className="flex items-center space-x-2">
+                <Monitor className={`w-4 h-4 ${isLowPoly ? 'text-emerald-400' : 'text-slate-400'}`} />
+                <div>
+                  <p className="text-xs font-medium text-slate-200">Performance Mode</p>
+                  <p className="text-[10px] text-slate-500">
+                    {isLowPoly ? `${Math.round(modelStats.triangleCount).toLocaleString()} triangles` : 'Low-poly for smoother viewing'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => onLowPolyToggle(!isLowPoly)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                  isLowPoly ? 'bg-emerald-600' : 'bg-slate-700'
+                }`}
+              >
+                <span
+                  className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                    isLowPoly ? 'translate-x-5' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          )}
         </section>
 
         {children}

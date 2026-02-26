@@ -168,6 +168,32 @@ const ExtrudedSliceRenderer = ({ slice, axis, thickness }: { slice: Slice, axis:
     );
 };
 
+const SliceLineGroup = ({ slice, color }: { slice: Slice, color: string }) => {
+    const positions = useMemo(() => {
+        const pts: number[] = [];
+        slice.segments.forEach(seg => {
+            pts.push(seg.start.x, seg.start.y, seg.start.z, seg.end.x, seg.end.y, seg.end.z);
+        });
+        return new Float32Array(pts);
+    }, [slice.segments]);
+
+    if (positions.length === 0) return null;
+
+    return (
+        <lineSegments>
+            <bufferGeometry>
+                <bufferAttribute
+                    attach="attributes-position"
+                    count={positions.length / 3}
+                    array={positions}
+                    itemSize={3}
+                />
+            </bufferGeometry>
+            <lineBasicMaterial color={color} linewidth={1} />
+        </lineSegments>
+    );
+};
+
 const SliceRenderer = ({ slices, axis, visibleCount, useExtrusion, material }: { slices: Slice[], axis: Axis, visibleCount?: number, useExtrusion?: boolean, material?: MaterialSettings }) => {
     const limit = visibleCount !== undefined ? visibleCount : slices.length;
     const visibleSlices = slices.slice(0, limit);
@@ -223,24 +249,7 @@ const SliceRenderer = ({ slices, axis, visibleCount, useExtrusion, material }: {
 
                  // Fallback to Line Rendering
                  const color = (visibleCount !== undefined && isTop) ? "#ffffff" : "#fbbf24";
-                 return (
-                    <group key={slice.id}>
-                        {slice.segments.map((seg, i) => (
-                            <lineSegments key={i}>
-                                <bufferGeometry attach="geometry">
-                                    <float32BufferAttribute
-                                        attach="attributes-position"
-                                        args={[
-                                            [seg.start.x, seg.start.y, seg.start.z, seg.end.x, seg.end.y, seg.end.z].flat(),
-                                            3
-                                        ]}
-                                    />
-                                </bufferGeometry>
-                                <lineBasicMaterial attach="material" color={color} linewidth={1} />
-                            </lineSegments>
-                        ))}
-                    </group>
-                 );
+                 return <SliceLineGroup key={slice.id} slice={slice} color={color} />;
             })}
         </group>
     );

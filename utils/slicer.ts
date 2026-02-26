@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { Axis, Slice, LineSegment } from '../types';
 
-export const sliceGeometry = (
+export const sliceGeometry = async (
   geometry: THREE.BufferGeometry,
   axis: Axis,
   numberOfSlices: number,
   onProgress?: (current: number, total: number) => void
-): Slice[] => {
+): Promise<Slice[]> => {
   // Ensure geometry is non-indexed for easier triangle iteration
   const nonIndexedGeo = geometry.index ? geometry.toNonIndexed() : geometry.clone();
   const posAttr = nonIndexedGeo.attributes.position as THREE.BufferAttribute;
@@ -33,8 +33,15 @@ export const sliceGeometry = (
     return { x: v.y, y: v.z }; // Axis X
   };
 
-  // Iterate through slice planes
+  // Process in chunks to avoid freezing the UI
+  const CHUNK_SIZE = 1; // Process 1 slice at a time to keep UI responsive for complex models
+  
   for (let i = 1; i <= numberOfSlices; i++) {
+    // Yield to main thread every slice
+    if (i % CHUNK_SIZE === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0));
+    }
+
     if (onProgress) onProgress(i, numberOfSlices);
 
     const planeLevel = min + i * step;

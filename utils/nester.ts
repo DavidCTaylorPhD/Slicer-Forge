@@ -153,11 +153,11 @@ class Bin {
   }
 }
 
-export const nestSlices = (
+export const nestSlices = async (
   slices: Slice[],
   material: MaterialSettings,
   strategy: 'optimized' | 'sequential' = 'optimized'
-): NestResult => {
+): Promise<NestResult> => {
   // 1. Unit Conversion
   const scaleFactor = material.unit === 'in' ? 25.4 : 1;
   const sheetWidth = material.width * scaleFactor;
@@ -207,8 +207,15 @@ export const nestSlices = (
       return bin;
   };
 
-  // 4. Packing
-  sortedSlices.forEach(slice => {
+  // 4. Packing (Process in chunks)
+  for (let i = 0; i < sortedSlices.length; i++) {
+      const slice = sortedSlices[i];
+      
+      // Yield to main thread every 20 items
+      if (i > 0 && i % 20 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+      }
+
       let placed = false;
       for (const bin of bins) {
           if (bin.insert(slice, margin)) {
@@ -224,7 +231,7 @@ export const nestSlices = (
              oversized.push(slice);
           }
       }
-  });
+  }
 
   return {
       sheets: bins.map(bin => ({
