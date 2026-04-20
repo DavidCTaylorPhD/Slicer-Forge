@@ -6,6 +6,7 @@ import { SheetViewer } from './components/SheetViewer';
 import { AIAssistant } from './components/AIAssistant';
 import { OversizedModal } from './components/OversizedModal';
 import { InstallModal } from './components/InstallModal';
+import { WelcomeModal } from './components/WelcomeModal';
 import { sliceGeometry } from './utils/slicer';
 import { nestSlices } from './utils/nester';
 import { splitSlice } from './utils/modifier';
@@ -66,6 +67,20 @@ const App: React.FC = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallModal, setShowInstallModal] = useState(false);
   const [showUserGuide, setShowUserGuide] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    // FORCE SHOW for this session so the user can see it
+    setShowWelcome(true);
+    
+    // Optional: Reset storage for future natural launches
+    // localStorage.removeItem('sliceforge_welcome_seen');
+  }, []);
+
+  const handleCloseWelcome = () => {
+    setShowWelcome(false);
+    localStorage.setItem('sliceforge_welcome_seen', 'true');
+  };
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -423,6 +438,7 @@ const App: React.FC = () => {
         canUndo={canUndo}
         canRedo={canRedo}
         onShowInstall={() => setShowInstallModal(true)}
+        onShowWelcome={() => setShowWelcome(true)}
         isLowPoly={isLowPoly}
         onLowPolyToggle={handleLowPolyToggle}
       >
@@ -440,6 +456,11 @@ const App: React.FC = () => {
         onClose={() => setShowInstallModal(false)}
         onInstall={handleInstallClick}
         isInstallable={!!deferredPrompt}
+      />
+
+      <WelcomeModal 
+        isOpen={showWelcome}
+        onClose={handleCloseWelcome}
       />
 
       {showUserGuide && (

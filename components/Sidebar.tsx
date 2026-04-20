@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Layers, Settings, FileBox, Scissors, Maximize, Lock, Unlock, RotateCcw, Link as LinkIcon, GripHorizontal, ListOrdered, Monitor } from 'lucide-react';
+import { Layers, Settings, FileBox, Scissors, Maximize, Lock, Unlock, RotateCcw, Link as LinkIcon, GripHorizontal, ListOrdered, Monitor, Play } from 'lucide-react';
 import { Axis, MaterialSettings, SliceSettings, ModelStats } from '../types';
 
 interface SidebarProps {
@@ -21,6 +21,7 @@ interface SidebarProps {
   canUndo?: boolean;
   canRedo?: boolean;
   onShowInstall?: () => void;
+  onShowWelcome?: () => void;
   isLowPoly: boolean;
   onLowPolyToggle: (enabled: boolean) => void;
 }
@@ -42,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   canUndo,
   canRedo,
   onShowInstall,
+  onShowWelcome,
   isLowPoly,
   onLowPolyToggle
 }) => {
@@ -555,6 +557,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <Monitor className="w-4 h-4 group-hover:scale-110 transition-transform" />
             <span>Install Desktop App</span>
+          </button>
+        )}
+
+        {onShowWelcome && (
+          <button 
+            onClick={onShowWelcome}
+            className="w-full mt-2 flex items-center justify-center space-x-2 py-3 bg-slate-800/50 hover:bg-slate-800 text-slate-400 border border-slate-700/50 rounded-lg text-xs font-semibold transition-all group"
+          >
+            <Play className="w-3.5 h-3.5 group-hover:text-indigo-400 transition-colors" />
+            <span>Show Welcome Guide</span>
           </button>
         )}
       </div>
