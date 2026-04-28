@@ -20,7 +20,6 @@ interface SidebarProps {
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
-  onShowInstall?: () => void;
   onShowWelcome?: () => void;
   isLowPoly: boolean;
   onLowPolyToggle: (enabled: boolean) => void;
@@ -42,7 +41,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onRedo,
   canUndo,
   canRedo,
-  onShowInstall,
   onShowWelcome,
   isLowPoly,
   onLowPolyToggle
@@ -549,16 +547,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
              'Slice & Nest'
           )}
         </button>
-
-        {onShowInstall && (
-          <button 
-            onClick={onShowInstall}
-            className="w-full mt-2 flex items-center justify-center space-x-2 py-3 bg-slate-800 hover:bg-slate-700 text-indigo-400 border border-indigo-500/20 rounded-lg text-sm font-semibold transition-all group"
-          >
-            <Monitor className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            <span>Install Desktop App</span>
-          </button>
-        )}
 
         {onShowWelcome && (
           <button 

@@ -5,7 +5,6 @@ import { Sidebar } from './components/Sidebar';
 import { SheetViewer } from './components/SheetViewer';
 import { AIAssistant } from './components/AIAssistant';
 import { OversizedModal } from './components/OversizedModal';
-import { InstallModal } from './components/InstallModal';
 import { WelcomeModal } from './components/WelcomeModal';
 import { sliceGeometry } from './utils/slicer';
 import { nestSlices } from './utils/nester';
@@ -64,8 +63,6 @@ const App: React.FC = () => {
   const playIntervalRef = useRef<number | null>(null);
 
   // PWA Installation State
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  const [showInstallModal, setShowInstallModal] = useState(false);
   const [showUserGuide, setShowUserGuide] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
@@ -80,29 +77,6 @@ const App: React.FC = () => {
   const handleCloseWelcome = () => {
     setShowWelcome(false);
     localStorage.setItem('sliceforge_welcome_seen', 'true');
-  };
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      setShowInstallModal(true);
-      return;
-    }
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setDeferredPrompt(null);
-    }
-    setShowInstallModal(false);
   };
 
   const updateMaterial = useCallback((material: MaterialSettings) => {
@@ -235,16 +209,7 @@ const App: React.FC = () => {
             const indices = originalGeometry.index ? (originalGeometry.index.array as Uint32Array).slice() : null;
             
             // Target a reduction that keeps at least 2000 vertices or 15% of original
-            const vertexCount = originalGeometry.attributes.position.count;
-            const targetCount = Math.max(2000, Math.floor(vertexCount * 0.15));
-            const countToRemove = Math.max(0, vertexCount - targetCount);
-
-            if (countToRemove <= 0) {
-                setLowPolyGeometry(originalGeometry);
-                setAppState(prev => ({ ...prev, geometry: originalGeometry }));
-                setIsProcessing(false);
-                return;
-            }
+            const targetRatio = 0.15;
 
             // Create worker
             const worker = new Worker(new URL('./utils/simplify.worker.ts', import.meta.url), { type: 'module' });
@@ -284,7 +249,7 @@ const App: React.FC = () => {
             worker.postMessage({
                 positions,
                 indices,
-                countToRemove
+                targetRatio
             }, transferables as Transferable[]);
 
         } catch (err) {
@@ -437,7 +402,6 @@ const App: React.FC = () => {
         onRedo={redo}
         canUndo={canUndo}
         canRedo={canRedo}
-        onShowInstall={() => setShowInstallModal(true)}
         onShowWelcome={() => setShowWelcome(true)}
         isLowPoly={isLowPoly}
         onLowPolyToggle={handleLowPolyToggle}
@@ -449,13 +413,6 @@ const App: React.FC = () => {
           oversized={oversizedSlices}
           onAutoSplit={handleAutoSplit}
           onIgnore={() => setOversizedSlices([])} 
-      />
-
-      <InstallModal 
-        isOpen={showInstallModal}
-        onClose={() => setShowInstallModal(false)}
-        onInstall={handleInstallClick}
-        isInstallable={!!deferredPrompt}
       />
 
       <WelcomeModal 
