@@ -16,8 +16,8 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ modelStats, onSuggestP
 
     const handleAnalyze = async () => {
         if (!modelStats) return;
-        if (!process.env.API_KEY) {
-            setError("API Key not found. Please configure process.env.API_KEY.");
+        if (!process.env.GEMINI_API_KEY) {
+            setError("API Key not found. Please click the Settings (gear) icon and add your GEMINI_API_KEY secret.");
             return;
         }
 
@@ -26,7 +26,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ modelStats, onSuggestP
         
         try {
             /* Initialize GoogleGenAI with API KEY from environment variable */
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+            const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
             const prompt = `
                 I have a 3D model with the following statistics:
                 Dimensions: X=${modelStats.dimensions.x.toFixed(2)}, Y=${modelStats.dimensions.y.toFixed(2)}, Z=${modelStats.dimensions.z.toFixed(2)} units.
@@ -40,9 +40,9 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ modelStats, onSuggestP
                 3. A brief explanation of why.
             `;
 
-            /* Request structured JSON response using gemini-3-pro-preview */
+            /* Request structured JSON response using gemini-3-flash-preview */
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-preview',
+                model: 'gemini-3-flash-preview',
                 contents: prompt,
                 config: {
                     responseMimeType: "application/json",

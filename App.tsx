@@ -16,8 +16,8 @@ import { mergeVertices } from 'three-stdlib';
 import { LayoutDashboard, Box, Layers, AlertTriangle, Play, Pause, SkipBack, SkipForward, BookOpen, X } from 'lucide-react';
 
 // Ensure API KEY is available for GenAI
-if (!process.env.API_KEY) {
-  console.warn("process.env.API_KEY is not set. AI features will be disabled.");
+if (!process.env.GEMINI_API_KEY) {
+  console.warn("process.env.GEMINI_API_KEY is not set. AI features will be disabled.");
 }
 
 interface AppState {
