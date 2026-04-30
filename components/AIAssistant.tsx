@@ -17,7 +17,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ modelStats, onSuggestP
     const handleAnalyze = async () => {
         if (!modelStats) return;
         if (!process.env.GEMINI_API_KEY) {
-            setError("API Key not found. Please click the Settings (gear) icon and add your GEMINI_API_KEY secret.");
+            setError("API Key not found. Please add GEMINI_API_KEY to your environment variables (Settings in AI Studio, or Dashboard in Vercel).");
             return;
         }
 
